@@ -1,2 +1,4 @@
 .trigger
 node_modules
+.cursor
+.env
