@@ -2,3 +2,5 @@
 node_modules
 .cursor
 .env
+output/
+/fixtures/
