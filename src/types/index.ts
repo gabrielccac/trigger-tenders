@@ -19,6 +19,15 @@ export type SearchPayload = {
   numeroAnoCompra: string;
 };
 
+export type Customer = {
+  cnpj: string;
+  name: string;
+  positiveKeywords: string[];
+  negativeKeywords: string[];
+  baseId: string;
+  tableId: string;
+};
+
 /** Single item from GET /compras response array */
 export type Bidding = {
   numeroUasg: number;

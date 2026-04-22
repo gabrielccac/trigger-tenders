@@ -1,5 +1,5 @@
 import { logger } from "@trigger.dev/sdk";
-import type { Bidding, SearchPayload } from "../types";
+import type { Bidding, BiddingItem, SearchPayload } from "../types";
 import { listBiddings } from "./api/public/comprasnet";
 
 /**
@@ -47,4 +47,20 @@ export function filterByKeywords(
     const matchesNegative = neg.some((k) => t.includes(k));
     return matchesPositive && !matchesNegative;
   });
+}
+
+/**
+ * Builds the CodigoCompra value for a bidding (padded composite: numeroUasg 6, modalidade 2, numero 5, ano 4).
+ */
+export function codigoCompraFromBidding(b: Bidding): string {
+  const uasg = String(b.numeroUasg).padStart(6, "0");
+  const mod = String(b.modalidade).padStart(2, "0");
+  const num = String(b.numero).padStart(5, "0");
+  const ano = String(b.ano).padStart(4, "0");
+  return `${uasg}${mod}${num}${ano}`;
+}
+
+/** Sum of valorEstimadoTotal across all item/group rows. */
+export function sumItemsPreco(items: BiddingItem[]): number {
+  return items.reduce((s, row) => s + (row.valorEstimadoTotal ?? 0), 0);
 }

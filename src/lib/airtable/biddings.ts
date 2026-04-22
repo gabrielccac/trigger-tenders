@@ -1,9 +1,13 @@
 import type { Bidding, BiddingDetails, BiddingItem } from "../../types";
-import { createRecord, listAllValuesForField } from "./airtable";
+import { codigoCompraFromBidding, sumItemsPreco } from "../biddings";
+import { createRecord, listAllValuesForField } from "./client";
 
-export const AIRTABLE_TABLE_BIDDINGS =
-  process.env.AIRTABLE_TABLE_ID ?? "tbldNqB7CyC0bii06";
 const CODIGO_COMPRA_FIELD = "CodigoCompra";
+
+export type BiddingTableCtx = {
+  baseId: string;
+  tableId: string;
+};
 
 /** Airtable Modalidade select: API modalidade number → option label */
 const MODALIDADE_SELECT: Record<number, string> = {
@@ -16,23 +20,18 @@ function modalidadeToAirtableSelect(modalidade: number): string | undefined {
 }
 
 /**
- * Builds the CodigoCompra value for a bidding (padded composite: numeroUasg 6, modalidade 2, numero 5, ano 4).
- * Matches the format stored in Airtable for dedup.
- */
-export function codigoCompraFromBidding(b: Bidding): string {
-  const uasg = String(b.numeroUasg).padStart(6, "0");
-  const mod = String(b.modalidade).padStart(2, "0");
-  const num = String(b.numero).padStart(5, "0");
-  const ano = String(b.ano).padStart(4, "0");
-  return `${uasg}${mod}${num}${ano}`;
-}
-
-/**
  * Returns only biddings whose CodigoCompra is not already in the Airtable table.
  * Fetches existing CodigoCompra values from Airtable, then filters.
  */
-export async function filterNewBiddings(biddings: Bidding[]): Promise<Bidding[]> {
-  const existing = await listAllValuesForField(AIRTABLE_TABLE_BIDDINGS, CODIGO_COMPRA_FIELD);
+export async function filterNewBiddings(
+  biddings: Bidding[],
+  ctx: BiddingTableCtx
+): Promise<Bidding[]> {
+  const existing = await listAllValuesForField(
+    ctx.baseId,
+    ctx.tableId,
+    CODIGO_COMPRA_FIELD
+  );
   const existingSet = new Set(existing);
 
   return biddings.filter((b) => {
@@ -54,11 +53,6 @@ export type BiddingRecordFields = {
   Orgao?: string;
   UF?: string;
 };
-
-/** Sum of valorEstimadoTotal across all item/group rows. */
-export function sumItemsPreco(items: BiddingItem[]): number {
-  return items.reduce((s, row) => s + (row.valorEstimadoTotal ?? 0), 0);
-}
 
 /**
  * Builds Airtable record fields from list-view Bidding, optional details, and optional items.
@@ -113,10 +107,11 @@ export function buildBiddingRecordFields(
  */
 export async function createBiddingRecord(
   bidding: Bidding,
+  ctx: BiddingTableCtx,
   details?: BiddingDetails | null,
   items?: BiddingItem[] | null
 ): Promise<{ id: string }> {
   const fields = buildBiddingRecordFields(bidding, details, items);
-  const record = await createRecord(AIRTABLE_TABLE_BIDDINGS, fields);
+  const record = await createRecord(ctx.baseId, ctx.tableId, fields);
   return { id: record.id };
 }

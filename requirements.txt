@@ -1,0 +1,9 @@
+seleniumbase
+pyvirtualdisplay
+pyotp
+beautifulsoup4
+python-dotenv
+curl-cffi
+playwright
+google-genai
+requests

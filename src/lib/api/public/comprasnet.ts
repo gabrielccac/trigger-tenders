@@ -33,8 +33,7 @@ export async function listBiddings(
   );
   return apiGetWithToken<Bidding[]>(
     (token) =>
-      `/compras?captcha=${encodeURIComponent(token)}&tamanhoPagina=${pageSize}&pagina=${page}&filtro=${filtro}`,
-    { maxRetries: 3 }
+      `/compras?captcha=${encodeURIComponent(token)}&tamanhoPagina=${pageSize}&pagina=${page}&filtro=${filtro}`
   );
 }
 
@@ -46,8 +45,7 @@ export async function getBiddingDetails(
   codigoCompra: string
 ): Promise<BiddingDetails> {
   return apiGetWithToken<BiddingDetails>(
-    (token) => `/compras/${codigoCompra}?captcha=${encodeURIComponent(token)}`,
-    { maxRetries: 3 }
+    (token) => `/compras/${codigoCompra}?captcha=${encodeURIComponent(token)}`
   );
 }
 
@@ -61,8 +59,7 @@ export async function getBiddingItems(
 ): Promise<BiddingItem[]> {
   const result = await apiGetWithToken<BiddingItem[]>(
     (token) =>
-      `/compras/${codigoCompra}/itens?captcha=${encodeURIComponent(token)}&tamanhoPagina=1000&pagina=0`,
-    { maxRetries: 3 }
+      `/compras/${codigoCompra}/itens?captcha=${encodeURIComponent(token)}&tamanhoPagina=1000&pagina=0`
   );
   return Array.isArray(result) ? result : [];
 }
@@ -93,7 +90,6 @@ export async function getItemDetails(
 ): Promise<BiddingItemDetails> {
   return apiGetWithToken<BiddingItemDetails>(
     (token) =>
-      `/compras/${codigoCompra}/itens/${numeroItem}/detalhamento?captcha=${encodeURIComponent(token)}`,
-    { maxRetries: 3 }
+      `/compras/${codigoCompra}/itens/${numeroItem}/detalhamento?captcha=${encodeURIComponent(token)}`
   );
 }

@@ -3,17 +3,28 @@ import type { Bidding } from "../types";
 import { getBiddingDetails, getBiddingItems } from "../lib/api/public/comprasnet";
 import { fetchAllAttachments } from "../lib/api/public/pncp";
 import { prepareAttachments } from "../lib/files";
-import { getRecordId } from "../lib/db/airtable";
-import { uploadAttachment } from "../lib/db/airtable";
-import {
-  AIRTABLE_TABLE_BIDDINGS,
-  createBiddingRecord,
-} from "../lib/db/biddings";
+import { getRecordId } from "../lib/airtable/client";
+import { uploadAttachment } from "../lib/airtable/client";
+import { createBiddingRecord } from "../lib/airtable/biddings";
 
 const CODIGO_COMPRA_FIELD = "CodigoCompra";
 const ANEXOS_FIELD = "Anexos";
 
-export type IngestBiddingPayload = { codigoCompra: string; bidding: Bidding };
+/** Max concurrent ingest runs (Airtable + Comprasnet). Override with INGEST_BIDDING_CONCURRENCY. */
+function ingestConcurrencyLimit(): number {
+  const raw = process.env.INGEST_BIDDING_CONCURRENCY;
+  if (raw == null || raw === "") return 5;
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 1) return 5;
+  return Math.min(n, 100);
+}
+
+export type IngestBiddingPayload = {
+  codigoCompra: string;
+  bidding: Bidding;
+  baseId: string;
+  tableId: string;
+};
 
 /**
  * Idempotent per-bidding ingest: ensure one Airtable record (by CodigoCompra), then upload attachments.
@@ -21,12 +32,16 @@ export type IngestBiddingPayload = { codigoCompra: string; bidding: Bidding };
  */
 export const ingestBidding = task({
   id: "ingest-bidding",
+  queue: {
+    concurrencyLimit: ingestConcurrencyLimit(),
+  },
   run: async (payload: IngestBiddingPayload) => {
-    const { codigoCompra, bidding } = payload;
+    const { codigoCompra, bidding, baseId, tableId } = payload;
 
     const details = await getBiddingDetails(codigoCompra);
     const existingId = await getRecordId(
-      AIRTABLE_TABLE_BIDDINGS,
+      baseId,
+      tableId,
       CODIGO_COMPRA_FIELD,
       codigoCompra
     );
@@ -36,7 +51,12 @@ export const ingestBidding = task({
 
     if (existingId === null) {
       const items = await getBiddingItems(codigoCompra);
-      const { id } = await createBiddingRecord(bidding, details, items);
+      const { id } = await createBiddingRecord(
+        bidding,
+        { baseId, tableId },
+        details,
+        items
+      );
       recordId = id;
       created = true;
     } else {
@@ -55,7 +75,7 @@ export const ingestBidding = task({
           });
           if (pdfs.length > 0) {
             for (const pdf of pdfs) {
-              await uploadAttachment(recordId, ANEXOS_FIELD, {
+              await uploadAttachment(baseId, recordId, ANEXOS_FIELD, {
                 contentType: "application/pdf",
                 buffer: pdf.buffer,
                 filename: pdf.name,

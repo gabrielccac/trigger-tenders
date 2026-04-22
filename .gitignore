@@ -2,5 +2,11 @@
 node_modules
 .cursor
 .env
+.env.*
 output/
 /fixtures/
+coverage/
+dist/
+*.log
+Thumbs.db
+.DS_Store

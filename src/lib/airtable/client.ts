@@ -1,5 +1,3 @@
-const AIRTABLE_BASE_ID =
-  process.env.AIRTABLE_BASE_ID ?? "app3ZwUila8cvLYLu";
 const AIRTABLE_API_BASE = "https://api.airtable.com/v0";
 
 export type AirtableRecord = {
@@ -23,19 +21,22 @@ function getApiKey(): string {
  * Use offset from the previous response to page.
  */
 export async function listRecords(
+  baseId: string,
   tableId: string,
   options: {
     fields?: string[];
     pageSize?: number;
     offset?: string;
+    filterByFormula?: string;
   } = {}
 ): Promise<ListRecordsResult> {
   const params = new URLSearchParams();
   if (options.pageSize != null) params.set("pageSize", String(options.pageSize));
   if (options.offset) params.set("offset", options.offset);
+  if (options.filterByFormula) params.set("filterByFormula", options.filterByFormula);
   options.fields?.forEach((f) => params.append("fields[]", f));
 
-  const url = `${AIRTABLE_API_BASE}/${AIRTABLE_BASE_ID}/${tableId}?${params.toString()}`;
+  const url = `${AIRTABLE_API_BASE}/${baseId}/${tableId}?${params.toString()}`;
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${getApiKey()}` },
   });
@@ -57,6 +58,7 @@ export async function listRecords(
  * Used for dedup (e.g. all CodigoCompra values in the table).
  */
 export async function listAllValuesForField(
+  baseId: string,
   tableId: string,
   fieldName: string
 ): Promise<string[]> {
@@ -64,7 +66,7 @@ export async function listAllValuesForField(
   let offset: string | undefined;
 
   do {
-    const { records, offset: nextOffset } = await listRecords(tableId, {
+    const { records, offset: nextOffset } = await listRecords(baseId, tableId, {
       fields: [fieldName],
       pageSize: 100,
       offset,
@@ -84,13 +86,14 @@ export async function listAllValuesForField(
  * Uses filterByFormula; value is escaped so single quotes do not break the formula.
  */
 export async function getRecordId(
+  baseId: string,
   tableId: string,
   fieldName: string,
   value: string
 ): Promise<string | null> {
   const escaped = value.replace(/'/g, "''");
   const formula = encodeURIComponent(`{${fieldName}} = '${escaped}'`);
-  const url = `${AIRTABLE_API_BASE}/${AIRTABLE_BASE_ID}/${tableId}?filterByFormula=${formula}&pageSize=1&fields[]=${encodeURIComponent(fieldName)}`;
+  const url = `${AIRTABLE_API_BASE}/${baseId}/${tableId}?filterByFormula=${formula}&pageSize=1&fields[]=${encodeURIComponent(fieldName)}`;
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${getApiKey()}` },
   });
@@ -106,10 +109,11 @@ export async function getRecordId(
  * POST to https://api.airtable.com/v0/{baseId}/{tableId} with body { fields }.
  */
 export async function createRecord(
+  baseId: string,
   tableId: string,
   fields: Record<string, unknown>
 ): Promise<AirtableRecord> {
-  const url = `${AIRTABLE_API_BASE}/${AIRTABLE_BASE_ID}/${tableId}`;
+  const url = `${AIRTABLE_API_BASE}/${baseId}/${tableId}`;
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -135,12 +139,11 @@ const AIRTABLE_CONTENT_BASE = "https://content.airtable.com/v0";
  * POST to content.airtable.com with base64-encoded file.
  */
 export async function uploadAttachment(
+  baseId: string,
   recordId: string,
   fieldName: string,
   payload: { contentType: string; buffer: Buffer; filename: string }
 ): Promise<void> {
-  const baseId =
-    process.env.AIRTABLE_BASE_ID ?? "app3ZwUila8cvLYLu";
   const url = `${AIRTABLE_CONTENT_BASE}/${baseId}/${recordId}/${fieldName}/uploadAttachment`;
   const body = JSON.stringify({
     contentType: payload.contentType,
